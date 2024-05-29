@@ -1,0 +1,61 @@
+services:
+  ghost:
+    image: ghost:5-alpine
+    restart: always
+    ports:
+      - "2368:2368"
+    environment:
+      database__connection__host: db
+      database__connection__database: ghost
+      database__connection__user: ghost
+      database__connection__password: ${DB_GHOST_PASSWORD}
+      url: https://${URL}
+      mail__transport: ${MAIL_TRANSPORT}
+      mail__options__host: ${MAIL_HOST}
+      mail__options__port: ${MAIL_PORT}
+      mail__options__secure_connection: ${MAIL_SECURE_CONNECTION}
+      mail__options__auth__user: ${MAIL_USER}
+      mail__options__auth__pass: ${MAIL_PASSWORD}
+    volumes:
+      - /home/ghostadmin/ghostcms/content:/var/lib/ghost/content
+    depends_on:
+      - db
+
+  db:
+    image: arm64v8/mysql:8
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ghost
+      MYSQL_USER: ghost
+      MYSQL_PASSWORD: ${DB_GHOST_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  swag:
+    image: lscr.io/linuxserver/swag:latest
+    container_name: swag
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - URL=${URL}
+      - VALIDATION=dns
+      - DNSPLUGIN=cloudflare
+      - SUBDOMAINS=wildcard
+      - EMAIL=${EMAIL}
+    volumes:
+      - swag-data:/config
+      - $PWD/default.conf:/config/nginx/site-confs/default.conf
+      - $PWD/ghost.subdomain.conf:/config/nginx/proxy-confs/ghost.subdomain.conf
+      - $PWD/cloudflare.ini:/config/dns-conf/cloudflare.ini
+    ports:
+      - 443:443
+      - 80:80
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+  swag-data:
